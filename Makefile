@@ -19,8 +19,8 @@ help:
 build:
 	@echo "Building $(BINARY_NAME)..."
 	@mkdir -p $(BUILD_DIR)
-	@if [ ! -d cmd/scru-llm ]; then \
-		echo "cmd/scru-llm is not implemented yet. This repository is currently a planning skeleton."; \
+	@if ! find cmd/scru-llm -maxdepth 1 -name '*.go' | grep -q .; then \
+		echo "cmd/scru-llm has no Go implementation yet. This repository is currently a planning skeleton."; \
 		exit 1; \
 	fi
 	$(GO) build $(GOFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) $(MAIN_PACKAGE)

@@ -1,4 +1,4 @@
-module scru-llm
+module github.com/sleepyeldrazi/scru-llm
 
 go 1.21
 

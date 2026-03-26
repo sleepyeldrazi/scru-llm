@@ -71,6 +71,7 @@ Project name:
 
 - display name: `Scru-LLM`
 - binary name target: `scru-llm`
+- canonical module path: `github.com/sleepyeldrazi/scru-llm`
 - config example: `config/scru-llm.example.yaml`
 - local config path target: `config/scru-llm.yaml`
 

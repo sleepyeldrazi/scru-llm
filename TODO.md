@@ -26,7 +26,7 @@ Snapshot:
 **Duration**: 2-3 weeks
 
 ### P0.1 - Project Setup
-- [x] Initialize Go module (`go mod init scru-llm`)
+- [x] Initialize Go module (`go mod init github.com/sleepyeldrazi/scru-llm`)
 - [x] Set up basic directory structure
 - [x] Create `.gitignore` with Go and project-specific patterns
 - [x] Initialize git repository
