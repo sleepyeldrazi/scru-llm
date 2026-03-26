@@ -5,7 +5,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"syscall"
 
 	"github.com/sleepyeldrazi/scru-llm/internal/app"
 	"github.com/sleepyeldrazi/scru-llm/internal/config"
@@ -395,6 +397,12 @@ func NewRunCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			taskID := args[0]
 
+			// Check if we should run in background mode
+			if os.Getenv("SCRULLM_BACKGROUND") == "1" {
+				// We're the background process - run synchronously
+				return runTaskSync(taskID, mockMode)
+			}
+
 			fmt.Printf("🚀 Starting sprint for task: %s\n", taskID)
 
 			// Initialize application context
@@ -431,17 +439,19 @@ func NewRunCommand() *cobra.Command {
 				fmt.Printf("✅ Sprint completed: %s\n", sprint.ID)
 				fmt.Printf("Final status: %s\n", sprint.Phase)
 			} else {
-				// Start the sprint asynchronously
+				// Start the sprint asynchronously by spawning a detached process
 				fmt.Println("Starting sprint workflow...")
 				fmt.Println("(This will run asynchronously in the background)")
 				fmt.Println()
 
-				sprint, err := ctx.SprintMgr.StartSprint(context.Background(), taskID)
-				if err != nil {
-					return fmt.Errorf("failed to start sprint: %w", err)
+				// Spawn detached process
+				logFile := filepath.Join(ctx.Config.System.LogDir, fmt.Sprintf("task-%s.log", taskID))
+				if err := spawnBackgroundProcess(taskID, mockMode, logFile); err != nil {
+					return fmt.Errorf("failed to start background process: %w", err)
 				}
 
-				fmt.Printf("✅ Sprint started: %s\n", sprint.ID)
+				fmt.Printf("✅ Sprint started in background\n")
+				fmt.Printf("Log file: %s\n", logFile)
 				fmt.Println()
 				fmt.Println("The sprint is now running through phases:")
 				fmt.Println("  1. Intake - Creating initial specification")
@@ -452,6 +462,7 @@ func NewRunCommand() *cobra.Command {
 				fmt.Println()
 				fmt.Printf("Use 'scru-llm status %s' to check progress\n", taskID)
 				fmt.Printf("Use 'scru-llm logs --task %s' to view detailed logs\n", taskID)
+				fmt.Printf("Use 'tail -f %s' to watch live output\n", logFile)
 			}
 
 			return nil
@@ -565,4 +576,78 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// spawnBackgroundProcess spawns a detached process to run the task
+func spawnBackgroundProcess(taskID string, mockMode bool, logFile string) error {
+	// Get the path to the current executable
+	execPath, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("failed to get executable path: %w", err)
+	}
+
+	// Open log file
+	f, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to open log file: %w", err)
+	}
+	defer f.Close()
+
+	// Prepare command
+	cmd := exec.Command(execPath, "run", taskID, "--sync")
+	if mockMode {
+		cmd.Args = append(cmd.Args, "--mock")
+	}
+
+	// Set environment to mark as background process
+	cmd.Env = os.Environ()
+
+	// Detach from parent process group (Unix-specific)
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Setpgid: true, // Create new process group
+		Pgid:    0,
+	}
+
+	// Redirect output to log file
+	cmd.Stdout = f
+	cmd.Stderr = f
+
+	// Start the process
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to start process: %w", err)
+	}
+
+	// Don't wait - let it run in background
+	return nil
+}
+
+// runTaskSync runs a task synchronously (used by background process)
+func runTaskSync(taskID string, mockMode bool) error {
+	// Initialize application context
+	ctx, err := app.New(mockMode)
+	if err != nil {
+		return fmt.Errorf("failed to initialize app: %w", err)
+	}
+	defer ctx.Close()
+
+	// Verify task exists
+	task, err := ctx.TaskStore.Get(taskID)
+	if err != nil {
+		return fmt.Errorf("task not found: %w", err)
+	}
+
+	if task.Status != types.TaskStatusPending {
+		return fmt.Errorf("task is not in pending state (current: %s)", task.Status)
+	}
+
+	// Run the sprint synchronously
+	sprint, err := ctx.SprintMgr.StartSprintSync(context.Background(), taskID)
+	if err != nil {
+		return fmt.Errorf("failed to run sprint: %w", err)
+	}
+
+	fmt.Printf("✅ Sprint completed: %s\n", sprint.ID)
+	fmt.Printf("Final status: %s\n", sprint.Phase)
+
+	return nil
 }
