@@ -113,6 +113,16 @@ func (c *HTTPClient) Complete(ctx context.Context, req CompletionRequest) (*Comp
 		model = c.defaultModel
 	}
 
+	// Calculate input tokens (approximate)
+	inputChars := 0
+	for _, m := range req.Messages {
+		inputChars += len(m.Content)
+	}
+	inputTokens := inputChars / 4 // Rough approximation
+
+	fmt.Printf("[LLM CALL] Model: %s | Input: ~%d tokens | Temperature: %.2f\n",
+		model, inputTokens, req.Temperature)
+
 	// Build OpenAI-compatible request
 	messages := make([]message, len(req.Messages))
 	for i, m := range req.Messages {
@@ -142,7 +152,9 @@ func (c *HTTPClient) Complete(ctx context.Context, req CompletionRequest) (*Comp
 	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
 
 	// Send request
+	start := time.Now()
 	resp, err := c.httpClient.Do(httpReq)
+	elapsed := time.Since(start)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
@@ -170,11 +182,17 @@ func (c *HTTPClient) Complete(ctx context.Context, req CompletionRequest) (*Comp
 		return nil, fmt.Errorf("no choices in response")
 	}
 
+	// Log response
+	outputTokens := apiResp.Usage.CompletionTokens
+	totalTokens := apiResp.Usage.TotalTokens
+	fmt.Printf("[LLM RESP] Model: %s | Time: %s | Input: %d | Output: %d | Total: %d\n",
+		apiResp.Model, elapsed, apiResp.Usage.PromptTokens, outputTokens, totalTokens)
+
 	return &CompletionResponse{
 		Content:      apiResp.Choices[0].Message.Content,
-		TokensUsed:   apiResp.Usage.TotalTokens,
+		TokensUsed:   totalTokens,
 		TokensInput:  apiResp.Usage.PromptTokens,
-		TokensOutput: apiResp.Usage.CompletionTokens,
+		TokensOutput: outputTokens,
 		Model:        apiResp.Model,
 	}, nil
 }

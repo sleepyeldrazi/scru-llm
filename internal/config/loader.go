@@ -1,12 +1,48 @@
 package config
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/viper"
 )
+
+// loadEnvFile loads environment variables from a .env file
+func loadEnvFile(path string) error {
+	file, err := os.Open(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil // It's okay if .env doesn't exist
+		}
+		return err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		// Skip empty lines and comments
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		// Parse KEY=VALUE
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) == 2 {
+			key := strings.TrimSpace(parts[0])
+			value := strings.TrimSpace(parts[1])
+			// Remove quotes if present
+			value = strings.Trim(value, `"'`)
+			// Only set if not already set in environment
+			if os.Getenv(key) == "" {
+				os.Setenv(key, value)
+			}
+		}
+	}
+	return scanner.Err()
+}
 
 // Loader handles configuration loading from files and environment
 type Loader struct {
@@ -36,6 +72,20 @@ func NewLoader() *Loader {
 
 // Load loads configuration from files and environment
 func (l *Loader) Load() (*Config, error) {
+	// Load .env file first (so it can be overridden by actual env vars)
+	// Try multiple locations for .env
+	envPaths := []string{
+		".env",
+		"./.env",
+		filepath.Join(os.Getenv("HOME"), ".scru-llm", ".env"),
+	}
+	for _, envPath := range envPaths {
+		if err := loadEnvFile(envPath); err != nil {
+			// Log but don't fail - .env is optional
+			fmt.Fprintf(os.Stderr, "Warning: could not load .env from %s: %v\n", envPath, err)
+		}
+	}
+
 	// Start with defaults
 	cfg := DefaultConfig()
 

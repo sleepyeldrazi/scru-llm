@@ -182,7 +182,7 @@ func DefaultConfig() *Config {
 			Roles: map[string]RoleConfig{
 				"product_owner": {
 					Provider:    "openrouter",
-					Model:       "openai/gpt-oss-20b",
+					Model:       "qwen/qwen3.5-35b-a3b",
 					Temperature: 0.15,
 					MaxTokens:   7000,
 				},
@@ -194,19 +194,19 @@ func DefaultConfig() *Config {
 				},
 				"spec_engineer": {
 					Provider:    "openrouter",
-					Model:       "openai/gpt-oss-20b",
+					Model:       "qwen/qwen3.5-35b-a3b",
 					Temperature: 0.15,
 					MaxTokens:   7000,
 				},
 				"test_engineer": {
 					Provider:    "openrouter",
-					Model:       "openai/gpt-oss-20b",
+					Model:       "qwen/qwen3.5-coder-32b",
 					Temperature: 0.1,
 					MaxTokens:   3000,
 				},
 				"code_engineer": {
 					Provider:    "openrouter",
-					Model:       "qwen/qwen3-coder-next",
+					Model:       "qwen/qwen3.5-coder-32b",
 					Temperature: 0.1,
 					MaxTokens:   12000,
 				},

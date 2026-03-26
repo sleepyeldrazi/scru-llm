@@ -75,8 +75,20 @@ func (sm *SprintManager) StartSprint(ctx context.Context, taskID string) (*types
 		WithSprint(sprintID)
 	sm.eventLog.Append(event)
 
-	// Start processing in background
-	go sm.processSprint(context.Background(), sprint)
+	// Start processing in background with timeout
+	go func() {
+		fmt.Printf("[Sprint %s] Background goroutine started\n", sprint.ID)
+		// Use global timeout from config
+		ctx, cancel := context.WithTimeout(context.Background(), sm.cfg.Sprint.GlobalTimeout)
+		defer cancel()
+		defer func() {
+			if r := recover(); r != nil {
+				fmt.Printf("[Sprint %s] PANIC in background goroutine: %v\n", sprint.ID, r)
+				sm.failSprint(sprint, fmt.Sprintf("panic: %v", r))
+			}
+		}()
+		sm.processSprint(ctx, sprint)
+	}()
 
 	return sprint, nil
 }
@@ -124,6 +136,14 @@ func (sm *SprintManager) StartSprintSync(ctx context.Context, taskID string) (*t
 
 // processSprint runs the sprint through its phases
 func (sm *SprintManager) processSprint(ctx context.Context, sprint *types.Sprint) {
+	// Recover from panics to prevent silent goroutine deaths
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("[Sprint %s] PANIC recovered: %v\n", sprint.ID, r)
+			sm.failSprint(sprint, fmt.Sprintf("panic: %v", r))
+		}
+	}()
+
 	fmt.Printf("[Sprint %s] Starting processSprint...\n", sprint.ID)
 
 	// Phase 1: Intake (create initial spec)
