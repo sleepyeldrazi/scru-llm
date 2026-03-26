@@ -46,6 +46,7 @@ type Task struct {
 	WorkspaceDir    string     `json:"workspace_dir"`
 	CurrentSprintID string     `json:"current_sprint_id,omitempty"`
 	FinalOutcome    string     `json:"final_outcome,omitempty"`
+	TargetDirectory string     `json:"target_directory,omitempty"` // Directory to export final artifacts
 }
 
 // NewTask creates a new task with the given description

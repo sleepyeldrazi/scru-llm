@@ -4,6 +4,9 @@ package scrum
 import (
 	"context"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
 
 	"github.com/sleepyeldrazi/scru-llm/internal/config"
 	"github.com/sleepyeldrazi/scru-llm/internal/errors"
@@ -438,6 +441,16 @@ func (sm *SprintManager) completeSprint(sprint *types.Sprint) {
 	task.FinalOutcome = "completed"
 	sm.taskStore.Save(task)
 
+	// Export artifacts to target directory if specified
+	if task.TargetDirectory != "" {
+		fmt.Printf("[Sprint %s] Exporting artifacts to: %s\n", sprint.ID, task.TargetDirectory)
+		if err := sm.exportArtifacts(task.WorkspaceDir, task.TargetDirectory); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to export artifacts: %v\n", err)
+		} else {
+			fmt.Printf("[Sprint %s] ✅ Exported artifacts to: %s\n", sprint.ID, task.TargetDirectory)
+		}
+	}
+
 	event := types.NewEvent(types.EventTypeSprintCompleted, "sprint_manager", "Sprint completed successfully").
 		WithTask(sprint.TaskID).
 		WithSprint(sprint.ID)
@@ -463,4 +476,101 @@ func (sm *SprintManager) logReview(sprint *types.Sprint, phase string, decision 
 		WithTask(sprint.TaskID).
 		WithSprint(sprint.ID)
 	sm.eventLog.Append(event)
+}
+
+// exportArtifacts copies all artifacts from workspace to target directory
+func (sm *SprintManager) exportArtifacts(workspaceDir, targetDir string) error {
+	// Ensure target directory exists
+	if err := os.MkdirAll(targetDir, 0755); err != nil {
+		return fmt.Errorf("failed to create target directory: %w", err)
+	}
+
+	// Copy src directory contents
+	srcDir := filepath.Join(workspaceDir, "src")
+	if _, err := os.Stat(srcDir); err == nil {
+		entries, err := os.ReadDir(srcDir)
+		if err != nil {
+			return fmt.Errorf("failed to read src directory: %w", err)
+		}
+		for _, entry := range entries {
+			if entry.IsDir() {
+				continue
+			}
+			srcPath := filepath.Join(srcDir, entry.Name())
+			dstPath := filepath.Join(targetDir, entry.Name())
+			if err := copyFile(srcPath, dstPath); err != nil {
+				return fmt.Errorf("failed to copy %s: %w", entry.Name(), err)
+			}
+		}
+	}
+
+	// Copy spec directory
+	specDir := filepath.Join(workspaceDir, "spec")
+	targetSpecDir := filepath.Join(targetDir, "spec")
+	if _, err := os.Stat(specDir); err == nil {
+		if err := os.MkdirAll(targetSpecDir, 0755); err != nil {
+			return fmt.Errorf("failed to create spec directory: %w", err)
+		}
+		entries, err := os.ReadDir(specDir)
+		if err != nil {
+			return fmt.Errorf("failed to read spec directory: %w", err)
+		}
+		for _, entry := range entries {
+			if entry.IsDir() {
+				continue
+			}
+			srcPath := filepath.Join(specDir, entry.Name())
+			dstPath := filepath.Join(targetSpecDir, entry.Name())
+			if err := copyFile(srcPath, dstPath); err != nil {
+				return fmt.Errorf("failed to copy %s: %w", entry.Name(), err)
+			}
+		}
+	}
+
+	// Copy tests directory
+	testsDir := filepath.Join(workspaceDir, "tests")
+	targetTestsDir := filepath.Join(targetDir, "tests")
+	if _, err := os.Stat(testsDir); err == nil {
+		if err := os.MkdirAll(targetTestsDir, 0755); err != nil {
+			return fmt.Errorf("failed to create tests directory: %w", err)
+		}
+		entries, err := os.ReadDir(testsDir)
+		if err != nil {
+			return fmt.Errorf("failed to read tests directory: %w", err)
+		}
+		for _, entry := range entries {
+			if entry.IsDir() {
+				continue
+			}
+			srcPath := filepath.Join(testsDir, entry.Name())
+			dstPath := filepath.Join(targetTestsDir, entry.Name())
+			if err := copyFile(srcPath, dstPath); err != nil {
+				return fmt.Errorf("failed to copy %s: %w", entry.Name(), err)
+			}
+		}
+	}
+
+	return nil
+}
+
+// copyFile copies a single file from src to dst
+func copyFile(src, dst string) error {
+	sourceFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+
+	destFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer destFile.Close()
+
+	_, err = io.Copy(destFile, sourceFile)
+	if err != nil {
+		return err
+	}
+
+	return destFile.Sync()
 }

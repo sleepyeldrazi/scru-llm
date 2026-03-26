@@ -71,6 +71,27 @@ func extractJSON(content string) string {
 	return content
 }
 
+// ExtractTargetDirectory extracts a target directory path from task description
+// without relying on keyword signaling - uses pattern matching for common path formats
+func ExtractTargetDirectory(description string) string {
+	// Match absolute paths that look like target directories
+	// Pattern: /home/... or /Users/... or /var/... etc.
+	re := regexp.MustCompile(`(?:in|to|at|from)\s+(/(?:home|Users|var|tmp|opt|srv|mnt|media|data|workspace|projects|Documents|Desktop|Downloads)/[a-zA-Z0-9_\-\./]+)`)
+	matches := re.FindStringSubmatch(description)
+	if len(matches) > 1 {
+		return matches[1]
+	}
+
+	// Match relative paths starting with ./ or ../
+	re = regexp.MustCompile(`(?:in|to|at|from)\s+(\.\.?/[a-zA-Z0-9_\-\./]+)`)
+	matches = re.FindStringSubmatch(description)
+	if len(matches) > 1 {
+		return matches[1]
+	}
+
+	return ""
+}
+
 // ProductOwner creates initial task specifications
 type ProductOwner struct {
 	router *llm.Router

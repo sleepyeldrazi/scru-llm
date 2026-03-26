@@ -11,6 +11,7 @@ import (
 	"github.com/sleepyeldrazi/scru-llm/internal/config"
 	"github.com/sleepyeldrazi/scru-llm/internal/store"
 	"github.com/sleepyeldrazi/scru-llm/internal/types"
+	"github.com/sleepyeldrazi/scru-llm/internal/workers"
 	"github.com/sleepyeldrazi/scru-llm/internal/workspace"
 	"github.com/spf13/cobra"
 )
@@ -101,6 +102,13 @@ func NewTaskCommand() *cobra.Command {
 			task := types.NewTask(taskID, taskTitle, description)
 			task.WorkspaceDir = wsPath
 
+			// Detect target directory from description (robust pattern matching)
+			targetDir := workers.ExtractTargetDirectory(description)
+			if targetDir != "" {
+				task.TargetDirectory = targetDir
+				fmt.Printf("📁 Target directory detected: %s\n", targetDir)
+			}
+
 			// Save task
 			if err := taskStore.Save(task); err != nil {
 				return fmt.Errorf("failed to save task: %w", err)
@@ -129,6 +137,8 @@ func NewTaskCommand() *cobra.Command {
 
 // NewStatusCommand creates the status command
 func NewStatusCommand() *cobra.Command {
+	var verbose bool
+
 	cmd := &cobra.Command{
 		Use:   "status [task-id]",
 		Short: "Show task or system status",
@@ -160,6 +170,29 @@ func NewStatusCommand() *cobra.Command {
 				fmt.Printf("Status: %s\n", task.Status)
 				fmt.Printf("Created: %s\n", task.CreatedAt.Format("2006-01-02 15:04:05"))
 
+				if verbose {
+					fmt.Printf("Description: %s\n", task.Description)
+					fmt.Printf("Workspace: %s\n", task.WorkspaceDir)
+					if task.FinalOutcome != "" {
+						fmt.Printf("Final Outcome: %s\n", task.FinalOutcome)
+					}
+
+					// Show recent events
+					events, _ := eventLog.Read(store.ReadOptions{
+						TaskID: taskID,
+						Limit:  10,
+					})
+					if len(events) > 0 {
+						fmt.Printf("\nRecent Events:\n")
+						for _, event := range events {
+							fmt.Printf("  [%s] %s: %s\n",
+								event.Timestamp.Format("15:04:05"),
+								event.Type,
+								event.Message)
+						}
+					}
+				}
+
 				if task.CurrentSprintID != "" {
 					sprint, err := sprintStore.Get(task.CurrentSprintID)
 					if err == nil {
@@ -168,6 +201,10 @@ func NewStatusCommand() *cobra.Command {
 						fmt.Printf("  Phase: %s\n", sprint.Phase)
 						fmt.Printf("  Iteration: %d/%d\n", sprint.Iteration, sprint.MaxIterations[string(sprint.Phase)])
 						fmt.Printf("  Started: %s\n", sprint.StartedAt.Format("2006-01-02 15:04:05"))
+
+						if verbose && sprint.FailureReason != "" {
+							fmt.Printf("  Failure Reason: %s\n", sprint.FailureReason)
+						}
 					}
 				}
 			} else {
@@ -195,6 +232,8 @@ func NewStatusCommand() *cobra.Command {
 			return nil
 		},
 	}
+
+	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Show detailed information")
 
 	return cmd
 }
