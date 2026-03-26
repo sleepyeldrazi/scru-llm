@@ -212,7 +212,7 @@ func DefaultConfig() *Config {
 				},
 				"reviewer": {
 					Provider:    "openrouter",
-					Model:       "mistralai/mistral-small-24b-instruct-2501",
+					Model:       "microsoft/phi-4-reasoning",
 					Temperature: 0.05,
 					MaxTokens:   4000,
 				},

@@ -35,8 +35,10 @@ User Task
 # Build the binary
 make build
 
-# Configure your OpenRouter API key
-export OPENROUTER_API_KEY=sk-or-v1-...
+# Configure your OpenRouter API key in .env file
+echo "OPENROUTER_API_KEY=sk-or-v1-..." > .env
+
+# Or manually edit .env in the project root or ~/.scru-llm/
 
 # Create a task
 ./bin/scru-llm task "Create a Python CLI calculator" --title "Calculator"
@@ -59,13 +61,13 @@ The system uses a cross-family model setup optimized for 24GB VRAM:
 | Role | Model | Family | VRAM |
 |------|-------|--------|------|
 | scrum_master | qwen/qwen3.5-35b-a3b | Alibaba (Qwen) | ~17-22GB |
-| product_owner | openai/gpt-oss-20b | OpenAI | ~11GB |
-| spec_engineer | openai/gpt-oss-20b | OpenAI | ~11GB |
-| test_engineer | openai/gpt-oss-20b | OpenAI | ~11GB |
-| code_engineer | qwen/qwen3-coder-next | Alibaba (Qwen) | ~17GB |
-| reviewer | mistralai/mistral-small-24b-instruct | Mistral | ~12-13GB |
+| product_owner | qwen/qwen3.5-35b-a3b | Alibaba (Qwen) | ~17-22GB |
+| spec_engineer | qwen/qwen3.5-35b-a3b | Alibaba (Qwen) | ~17-22GB |
+| test_engineer | qwen/qwen3.5-coder-32b | Alibaba (Qwen) | ~17GB |
+| code_engineer | qwen/qwen3.5-coder-32b | Alibaba (Qwen) | ~17GB |
+| reviewer | microsoft/phi-4-reasoning | Microsoft | ~10-12GB |
 
-**Note**: The reviewer uses a different model family (Mistral) to catch bugs that Qwen models might miss.
+**Note**: The reviewer uses Microsoft Phi-4 (cross-family) to catch bugs that Qwen models might miss with its explicit reasoning capabilities.
 
 ## Key Docs
 
@@ -139,12 +141,17 @@ Copy the example config and customize:
 cp config/scru-llm.example.yaml ~/.scru-llm/scru-llm.yaml
 ```
 
-Set your OpenRouter API key:
+Set your OpenRouter API key in `.env`:
 
 ```bash
-export OPENROUTER_API_KEY=sk-or-v1-...
-# Or add to ~/.bashrc or ~/.zshrc
+# In project root
+echo "OPENROUTER_API_KEY=sk-or-v1-..." > .env
+
+# Or in ~/.scru-llm/
+echo "OPENROUTER_API_KEY=sk-or-v1-..." > ~/.scru-llm/.env
 ```
+
+The system automatically loads `.env` from the project directory or `~/.scru-llm/.env`.
 
 ## Building
 
