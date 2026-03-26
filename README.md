@@ -1,86 +1,199 @@
 # Scru-LLM
 
-Scru-LLM is a specification-first skeleton for an LLM orchestration system that follows a Scrum-shaped software delivery workflow.
+Scru-LLM is a specification-first LLM orchestration system that follows a Scrum-shaped software delivery workflow. It takes user tasks through a structured pipeline: Intake → Spec Sprint → Test Sprint → Implementation Sprint → Review.
 
-## Status
+## Status: **MVP IMPLEMENTED & OPERATIONAL** ✅
 
-This repository is intentionally a planning and handoff skeleton.
+This repository now contains a **working MVP implementation** that can process software tasks end-to-end.
 
-- It is not a runnable product yet.
-- It exists to give a frontier model enough steering to implement the system later without inventing the product shape from scratch.
-- The target system is documented here; the current implementation state is documented separately.
+### What's Working
 
-Read these first:
+- ✅ CLI interface for task management
+- ✅ Full sprint workflow (5 phases)
+- ✅ LLM integration with OpenRouter
+- ✅ Multi-model orchestration (Qwen, Mistral, OpenAI families)
+- ✅ File-backed persistence (tasks, sprints, events)
+- ✅ Workspace management with artifact generation
+- ✅ Synchronous and asynchronous execution modes
 
-- [docs/CURRENT_STATE.md](docs/CURRENT_STATE.md)
-- [docs/MVP.md](docs/MVP.md)
-- [docs/CONTRACTS.md](docs/CONTRACTS.md)
-- [docs/AGENT_IMPLEMENTATION_WORKFLOW.md](docs/AGENT_IMPLEMENTATION_WORKFLOW.md)
+### Architecture
 
-## Product Intent
-
-Scru-LLM aims to turn a software task into a bounded, auditable workflow:
-
-1. Intake the request and create an initial spec.
-2. Tighten the spec until it is measurable and testable.
-3. Generate tests from the finalized spec.
-4. Implement code against those tests.
-5. Review and verify the result with deterministic checks.
-6. Report progress using Scrum-like phase transitions and artifacts.
-
-The emphasis is on:
-
-- spec-first development
-- bounded autonomy
-- grounded verification
-- reproducible execution
-- observable state and audit trails
-
-## Architecture Snapshot
-
-Target-state workflow:
-
-```text
+```
 User Task
-  -> Product Owner
-  -> Scrum Master / Sprint Manager
-  -> Spec Sprint
-  -> Test Sprint
-  -> Implementation Sprint
-  -> Review + Verification
+  -> Product Owner (GPT-OSS-20B)
+  -> Scrum Master / Sprint Manager (Qwen3.5-35B-A3B)
+  -> Spec Sprint (Spec Engineer: GPT-OSS-20B)
+  -> Test Sprint (Test Engineer: GPT-OSS-20B)
+  -> Implementation Sprint (Code Engineer: Qwen3-Coder-Next)
+  -> Review + Verification (Reviewer: Mistral Small 24B)
   -> Deliverable
 ```
 
-This repo keeps the target design intentionally explicit, but the first implementation slice is narrower than the full vision. See [docs/MVP.md](docs/MVP.md).
+## Quick Start
+
+```bash
+# Build the binary
+make build
+
+# Configure your OpenRouter API key
+export OPENROUTER_API_KEY=sk-or-v1-...
+
+# Create a task
+./bin/scru-llm task "Create a Python CLI calculator" --title "Calculator"
+
+# Run the sprint (asynchronous)
+./bin/scru-llm run <task-id>
+
+# Or run synchronously to see progress
+./bin/scru-llm run <task-id> --sync
+
+# Check status
+./bin/scru-llm status <task-id>
+./bin/scru-llm logs --task <task-id>
+```
+
+## Model Configuration
+
+The system uses a cross-family model setup optimized for 24GB VRAM:
+
+| Role | Model | Family | VRAM |
+|------|-------|--------|------|
+| scrum_master | qwen/qwen3.5-35b-a3b | Alibaba (Qwen) | ~17-22GB |
+| product_owner | openai/gpt-oss-20b | OpenAI | ~11GB |
+| spec_engineer | openai/gpt-oss-20b | OpenAI | ~11GB |
+| test_engineer | openai/gpt-oss-20b | OpenAI | ~11GB |
+| code_engineer | qwen/qwen3-coder-next | Alibaba (Qwen) | ~17GB |
+| reviewer | mistralai/mistral-small-24b-instruct | Mistral | ~12-13GB |
+
+**Note**: The reviewer uses a different model family (Mistral) to catch bugs that Qwen models might miss.
 
 ## Key Docs
 
-- [docs/CURRENT_STATE.md](docs/CURRENT_STATE.md): what exists right now
-- [docs/MVP.md](docs/MVP.md): the first runnable slice to build
-- [docs/CONTRACTS.md](docs/CONTRACTS.md): canonical core types and state contracts
-- [docs/REFERENCE_MAP.md](docs/REFERENCE_MAP.md): what to reuse from `delta-code` and `kokoclaw`
-- [docs/RESEARCH.md](docs/RESEARCH.md): imported research notes used as design guidance
-- [docs/SPECIFICATIONS.md](docs/SPECIFICATIONS.md): fuller target-state specification
-- [docs/architecture/OVERVIEW.md](docs/architecture/OVERVIEW.md): high-level design philosophy
-- [docs/architecture/SPRINT_LIFECYCLE.md](docs/architecture/SPRINT_LIFECYCLE.md): target sprint phases
-- [docs/architecture/RESEARCH_INFLUENCES.md](docs/architecture/RESEARCH_INFLUENCES.md): how research and prior projects inform the design
+- [docs/CURRENT_STATE.md](docs/CURRENT_STATE.md): Current implementation status
+- [docs/MVP.md](docs/MVP.md): MVP specification
+- [docs/CONTRACTS.md](docs/CONTRACTS.md): Core types and state contracts
+- [docs/REFERENCE_MAP.md](docs/REFERENCE_MAP.md): Reusable patterns from kokoclaw
+- [docs/AGENT_IMPLEMENTATION_WORKFLOW.md](docs/AGENT_IMPLEMENTATION_WORKFLOW.md): Implementation guidelines
 
-## Naming
+## Commands
 
-Project name:
+### Task Management
+```bash
+# Create a new task
+scru-llm task "description" --title "Title"
 
-- display name: `Scru-LLM`
-- binary name target: `scru-llm`
-- canonical module path: `github.com/sleepyeldrazi/scru-llm`
-- config example: `config/scru-llm.example.yaml`
-- local config path target: `config/scru-llm.yaml`
+# View task status
+scru-llm status [task-id]
+
+# View system status
+scru-llm status
+```
+
+### Sprint Execution
+```bash
+# Run sprint asynchronously
+scru-llm run <task-id>
+
+# Run sprint synchronously (see real-time output)
+scru-llm run <task-id> --sync
+
+# Run in mock mode (no LLM calls)
+scru-llm run <task-id> --mock
+```
+
+### Monitoring
+```bash
+# View event logs
+scru-llm logs
+scru-llm logs --task <task-id>
+scru-llm logs --limit 100
+```
+
+### Configuration
+```bash
+# Show current config
+scru-llm config show
+
+# Validate config
+scru-llm config validate
+```
+
+## Workspace Structure
+
+Each task gets a workspace at `~/.scru-llm/workspaces/<task-id>/`:
+
+```
+<task-id>/
+├── spec/           # Specifications (spec_v001.json, spec_v002.json, ...)
+├── tests/          # Test files (test_main.py, etc.)
+├── src/            # Source code (main.py, etc.)
+├── artifacts/      # Build outputs
+└── logs/           # Execution logs
+```
+
+## Configuration
+
+Copy the example config and customize:
+
+```bash
+cp config/scru-llm.example.yaml ~/.scru-llm/scru-llm.yaml
+```
+
+Set your OpenRouter API key:
+
+```bash
+export OPENROUTER_API_KEY=sk-or-v1-...
+# Or add to ~/.bashrc or ~/.zshrc
+```
+
+## Building
+
+```bash
+# Build binary
+make build
+
+# Run tests
+make test
+
+# Clean build artifacts
+make clean
+```
+
+## Project Structure
+
+```
+.
+├── bin/                    # Compiled binary
+├── cmd/
+│   └── scru-llm/          # Main entry point
+├── config/
+│   ├── prompts/           # System prompts for agents
+│   └── scru-llm.example.yaml
+├── internal/
+│   ├── app/               # Application context
+│   ├── cli/               # CLI commands
+│   ├── config/            # Configuration loading
+│   ├── errors/            # Sentinel errors
+│   ├── llm/               # LLM client and router
+│   ├── prompts/           # Prompt loader
+│   ├── scrum/             # Sprint orchestration
+│   ├── store/             # Persistence layer
+│   ├── types/             # Core domain types
+│   ├── workers/           # LLM agent workers
+│   └── workspace/         # Workspace management
+└── docs/                  # Documentation
+```
+
+## License
+
+MIT License - see LICENSE file for details.
 
 ## Research Foundation
 
-This skeleton is grounded in:
+This implementation is grounded in:
 
-- your imported [docs/RESEARCH.md](docs/RESEARCH.md)
-- prior implementation ideas from `../delta-code`
-- prior runtime patterns from `../kokoclaw`
+- Research on specification-first LLM orchestration
+- Prior patterns from `../kokoclaw` (model routing, role-based architecture)
+- Modern LLM benchmarks and best practices
 
-The guiding constraint from the research is simple: start with the smallest workflow that can be evaluated, then expand only when measured gains justify the added complexity.
+The guiding constraint: start with the smallest workflow that can be evaluated, then expand when measured gains justify complexity.

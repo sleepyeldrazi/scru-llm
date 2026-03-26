@@ -1,5 +1,6 @@
 # Scru-LLM Configuration
 # Copy this file to ~/.scru-llm/scru-llm.yaml and customize
+# Model mappings based on kokoclaw configuration (all ≤35B params)
 
 # =============================================================================
 # System Settings
@@ -11,8 +12,8 @@ system:
   # Log level: debug, info, warn, error
   log_level: "info"
   
-  # Maximum concurrent tasks
-  max_concurrent_tasks: 3
+  # Maximum concurrent tasks (set to 1 for careful testing)
+  max_concurrent_tasks: 1
   
   # Directory for logs
   log_dir: "~/.scru-llm/logs"
@@ -26,52 +27,52 @@ llm:
     - name: openrouter
       base_url: "https://openrouter.ai/api/v1"
       api_key: "${OPENROUTER_API_KEY}"
-      default_model: "anthropic/claude-3.5-sonnet"
-      
-    # Example: Local model via llama.cpp
-    # - name: local
-    #   base_url: "http://localhost:1234/v1"
-    #   api_key: "sk-local"
-    #   default_model: "local-model"
+      default_model: "openai/gpt-oss-20b"
   
   # Role-to-model mapping
-  # Each role can specify provider, model, temperature, and max_tokens
+  # Based on kokoclaw setup with models ≤35B params
   roles:
     product_owner:
       provider: openrouter
-      model: "anthropic/claude-3.5-sonnet"
-      temperature: 0.5
-      max_tokens: 4096
+      # researcher role from kokoclaw - good for requirements analysis
+      model: "openai/gpt-oss-20b"
+      temperature: 0.15
+      max_tokens: 7000
       
     scrum_master:
       provider: openrouter
-      model: "meta-llama/llama-3.1-70b"
-      temperature: 0.4
-      max_tokens: 2048
+      # orchestrator role from kokoclaw - task orchestration and routing
+      model: "qwen/qwen3.5-35b-a3b"
+      temperature: 0.15
+      max_tokens: 8192
       
     spec_engineer:
       provider: openrouter
-      model: "meta-llama/llama-3.1-70b"
-      temperature: 0.3
-      max_tokens: 4096
+      # researcher role - good for specification tightening
+      model: "openai/gpt-oss-20b"
+      temperature: 0.15
+      max_tokens: 7000
       
     test_engineer:
       provider: openrouter
-      model: "anthropic/claude-3.5-sonnet"
-      temperature: 0.5
-      max_tokens: 8192
+      # executor role from kokoclaw - quick operational responses
+      model: "openai/gpt-oss-20b"
+      temperature: 0.1
+      max_tokens: 3000
       
     code_engineer:
       provider: openrouter
-      model: "anthropic/claude-3.5-sonnet"
-      temperature: 0.7
-      max_tokens: 8192
+      # coder role from kokoclaw - code generation
+      model: "qwen/qwen3-coder-next"
+      temperature: 0.1
+      max_tokens: 12000
       
     reviewer:
       provider: openrouter
-      model: "meta-llama/llama-3.1-70b"
-      temperature: 0.3
-      max_tokens: 4096
+      # Mistral Small 3.1 24B - cross-family (Mistral vs Qwen) for bug detection diversity
+      model: "mistralai/mistral-small-3.1-24b-instruct"
+      temperature: 0.05
+      max_tokens: 4000
 
 # =============================================================================
 # Sprint Configuration
@@ -103,11 +104,7 @@ container:
   # Container runtime: docker, podman, containerd
   runtime: docker
   
-  # Optional: Container registry for custom images
-  # registry: "your-registry.com"
-  
   # Base images for different languages
-  # These are used to build task-specific containers
   base_images:
     python: "python:3.11-slim"
     node: "node:18-alpine"
@@ -120,13 +117,6 @@ container:
     cpu: 2
     memory: "4g"
     timeout: 10m
-  
-  # Volume mounts (in addition to workspace)
-  # Useful for shared caches
-  volumes:
-    # - host_path: "/home/user/.pip-cache"
-    #   container_path: "/root/.cache/pip"
-    #   read_only: false
 
 # =============================================================================
 # Reporting and Dashboard
@@ -134,7 +124,7 @@ container:
 reporting:
   # Web dashboard settings
   dashboard:
-    enabled: true
+    enabled: false
     port: 8080
     host: "127.0.0.1"
     refresh_interval: 5s
@@ -150,19 +140,13 @@ reporting:
     enabled: true
     path: "~/.scru-llm/logs/agents/"
     retention_days: 14
-    
-  # Metrics export (Prometheus format)
-  metrics:
-    enabled: false
-    port: 9090
-    path: "/metrics"
 
 # =============================================================================
 # Cost Controls
 # =============================================================================
 cost:
   # Maximum cost per task (USD)
-  budget_per_task: 5.00
+  budget_per_task: 2.00
   
   # Warning threshold (0.0-1.0)
   warning_threshold: 0.8
@@ -181,16 +165,7 @@ security:
   sandbox_enabled: true
   
   # Allow network access in containers
-  # Generally false for security, true if tasks need external APIs
   allow_network_access: false
-  
-  # Command whitelist (empty = deny all except build/test)
-  # Commands allowed in containers beyond build/test
-  allowed_commands: []
-  # Example:
-  # allowed_commands:
-  #   - "curl"
-  #   - "wget"
   
   # Trusted CIDRs for API access
   trusted_cidrs:
@@ -198,28 +173,6 @@ security:
     - "10.0.0.0/8"
     - "172.16.0.0/12"
     - "192.168.0.0/16"
-
-# =============================================================================
-# API Server Settings
-# =============================================================================
-api:
-  # Enable REST API
-  enabled: true
-  
-  # API server port
-  port: 8081
-  
-  # Host to bind to
-  host: "127.0.0.1"
-  
-  # Enable WebSocket for real-time updates
-  websocket_enabled: true
-  
-  # Require authentication
-  require_auth: true
-  
-  # Authentication method: token, basic, none
-  auth_method: "token"
 
 # =============================================================================
 # Development Settings
