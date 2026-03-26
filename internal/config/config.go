@@ -200,13 +200,13 @@ func DefaultConfig() *Config {
 				},
 				"test_engineer": {
 					Provider:    "openrouter",
-					Model:       "qwen/qwen3.5-coder-32b",
+					Model:       "qwen/qwen3-coder",
 					Temperature: 0.1,
 					MaxTokens:   3000,
 				},
 				"code_engineer": {
 					Provider:    "openrouter",
-					Model:       "qwen/qwen3.5-coder-32b",
+					Model:       "qwen/qwen3-coder",
 					Temperature: 0.1,
 					MaxTokens:   12000,
 				},

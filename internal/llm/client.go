@@ -63,7 +63,7 @@ func NewHTTPClient(baseURL, apiKey, defaultModel string) *HTTPClient {
 		baseURL:      baseURL,
 		apiKey:       apiKey,
 		defaultModel: defaultModel,
-		httpClient:   &http.Client{Timeout: 120 * time.Second},
+		httpClient:   &http.Client{Timeout: 300 * time.Second},
 	}
 }
 

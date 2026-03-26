@@ -259,82 +259,114 @@ func NewCodeEngineer(router *llm.Router, loader *prompts.Loader) *CodeEngineer {
 	}
 }
 
-// GenerateTests generates tests from a specification
+// GenerateTests generates comprehensive tests from a specification using LLM
 func (ce *CodeEngineer) GenerateTests(ctx context.Context, spec *types.Specification) (map[string]string, error) {
-	// For MVP, create a simple test template
-	language := "python"
-	if l, ok := spec.Context["language"].(string); ok {
-		language = l
+	systemPrompt, err := ce.loader.LoadSystemPrompt("test_engineer")
+	if err != nil {
+		return nil, fmt.Errorf("failed to load prompt: %w", err)
 	}
 
-	tests := make(map[string]string)
+	// Build comprehensive prompt
+	specJSON, _ := json.MarshalIndent(spec, "", "  ")
 
-	switch language {
-	case "python":
-		tests["test_main.py"] = fmt.Sprintf(`"""Tests for %s"""
-import unittest
+	userPrompt := fmt.Sprintf(`Generate comprehensive test files for this project based on the specification.
 
-class Test%s(unittest.TestCase):
-    """Test cases based on specification"""
-    
-    def test_basic_functionality(self):
-        """Test basic functionality"""
-        # TODO: Implement based on spec
-        pass
+SPECIFICATION:
+%s
 
-if __name__ == "__main__":
-    unittest.main()
-`, spec.Title, spec.Title)
-	case "go":
-		tests["main_test.go"] = fmt.Sprintf(`package main
+Requirements:
+1. Create test files that verify ALL requirements in the spec
+2. Include edge cases and error conditions
+3. Tests should be complete and runnable
+4. Generate tests appropriate for the technology stack mentioned
+5. Include both unit tests and integration tests if applicable
+6. Tests should fail against stub implementations but pass against correct implementations
 
-import "testing"
+Generate a JSON object where keys are test file paths and values are the complete test file contents.
+Example: {"tests/test_main.py": "...", "tests/integration.test.js": "..."}`, specJSON)
 
-func TestBasic(t *testing.T) {
-    // TODO: Implement based on spec
-}
-`)
-	default:
-		tests["test.txt"] = "TODO: Generate tests based on spec"
+	resp, err := ce.router.CompleteWithSystemForRole(ctx, "test_engineer", systemPrompt, userPrompt)
+	if err != nil {
+		return nil, fmt.Errorf("LLM request failed: %w", err)
 	}
 
-	return tests, nil
+	// Extract JSON from response
+	jsonContent := extractJSON(resp.Content)
+	if jsonContent == "" {
+		jsonContent = resp.Content
+	}
+
+	// Try to parse as map of files
+	var files map[string]string
+	if err := json.Unmarshal([]byte(jsonContent), &files); err != nil {
+		// If JSON parsing fails, create a single test file
+		files = map[string]string{
+			"tests/test_main.py": resp.Content,
+		}
+	}
+
+	return files, nil
 }
 
-// ImplementCode implements code to pass tests
+// ImplementCode implements code to pass tests using LLM
 func (ce *CodeEngineer) ImplementCode(ctx context.Context, spec *types.Specification, tests map[string]string, previousErrors string) (map[string]string, error) {
-	language := "python"
-	if l, ok := spec.Context["language"].(string); ok {
-		language = l
+	systemPrompt, err := ce.loader.LoadSystemPrompt("code_engineer")
+	if err != nil {
+		return nil, fmt.Errorf("failed to load prompt: %w", err)
 	}
 
-	code := make(map[string]string)
-
-	switch language {
-	case "python":
-		code["main.py"] = fmt.Sprintf(`"""%s"""
-
-def main():
-    """Main function"""
-    print("Hello from %s")
-    
-if __name__ == "__main__":
-    main()
-`, spec.Title, spec.Title)
-	case "go":
-		code["main.go"] = `package main
-
-import "fmt"
-
-func main() {
-    fmt.Println("Hello, World!")
-}
-`
-	default:
-		code["main.txt"] = "TODO: Implement code based on spec"
+	// Build comprehensive prompt with all context
+	specJSON, _ := json.MarshalIndent(spec, "", "  ")
+	testFiles := ""
+	for filename, content := range tests {
+		testFiles += fmt.Sprintf("\n=== %s ===\n%s\n", filename, content)
 	}
 
-	return code, nil
+	errorContext := ""
+	if previousErrors != "" {
+		errorContext = fmt.Sprintf("\n\nPREVIOUS ERRORS TO FIX:\n%s", previousErrors)
+	}
+
+	userPrompt := fmt.Sprintf(`Implement the complete code for this project based on the specification and tests.
+
+SPECIFICATION:
+%s
+
+TEST FILES:%s%s
+
+Requirements:
+1. Generate ALL necessary files for a complete, working implementation
+2. Include proper error handling
+3. Follow best practices for the technology stack
+4. Make sure code passes all tests
+5. Generate actual implementation, not stubs or TODOs
+6. Include package.json, tsconfig.json, and other config files if this is a Node.js/TypeScript project
+7. Include all source files, components, and styles
+
+Generate a JSON object where keys are file paths and values are the complete file contents.
+Example: {"src/main.py": "...", "package.json": "..."}`, specJSON, testFiles, errorContext)
+
+	resp, err := ce.router.CompleteWithSystemForRole(ctx, "code_engineer", systemPrompt, userPrompt)
+	if err != nil {
+		return nil, fmt.Errorf("LLM request failed: %w", err)
+	}
+
+	// Extract JSON from response
+	jsonContent := extractJSON(resp.Content)
+	if jsonContent == "" {
+		jsonContent = resp.Content
+	}
+
+	// Try to parse as map of files
+	var files map[string]string
+	if err := json.Unmarshal([]byte(jsonContent), &files); err != nil {
+		// If JSON parsing fails, create a single main file with the content
+		files = map[string]string{
+			"main.py": resp.Content,
+		}
+	}
+
+	return files, nil
 }
 
 // Reviewer reviews specifications, tests, and code

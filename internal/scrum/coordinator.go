@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/sleepyeldrazi/scru-llm/internal/types"
 	"github.com/sleepyeldrazi/scru-llm/internal/workers"
@@ -91,7 +92,20 @@ func (wc *WorkerCoordinator) SaveTests(taskID string, tests map[string]string) e
 	testDir := filepath.Join(wc.workspaceDir, taskID, "tests")
 
 	for filename, content := range tests {
+		// Clean the path and make it relative
+		filename = filepath.Clean(filename)
+		// Strip leading "tests/" if present to avoid duplication
+		filename = strings.TrimPrefix(filename, "tests/")
+		filename = strings.TrimPrefix(filename, "tests\\")
+
 		path := filepath.Join(testDir, filename)
+
+		// Create directory if needed
+		dir := filepath.Dir(path)
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("failed to create directory %s: %w", dir, err)
+		}
+
 		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 			return fmt.Errorf("failed to write test file %s: %w", filename, err)
 		}
@@ -132,7 +146,20 @@ func (wc *WorkerCoordinator) SaveCode(taskID string, code map[string]string) err
 	srcDir := filepath.Join(wc.workspaceDir, taskID, "src")
 
 	for filename, content := range code {
+		// Clean the path and make it relative
+		filename = filepath.Clean(filename)
+		// Strip leading "src/" if present to avoid duplication
+		filename = strings.TrimPrefix(filename, "src/")
+		filename = strings.TrimPrefix(filename, "src\\")
+
 		path := filepath.Join(srcDir, filename)
+
+		// Create directory if needed
+		dir := filepath.Dir(path)
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("failed to create directory %s: %w", dir, err)
+		}
+
 		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 			return fmt.Errorf("failed to write code file %s: %w", filename, err)
 		}

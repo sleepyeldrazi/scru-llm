@@ -505,22 +505,11 @@ func (sm *SprintManager) exportArtifacts(workspaceDir, targetDir string) error {
 		return fmt.Errorf("failed to create target directory: %w", err)
 	}
 
-	// Copy src directory contents
+	// Copy src directory recursively
 	srcDir := filepath.Join(workspaceDir, "src")
 	if _, err := os.Stat(srcDir); err == nil {
-		entries, err := os.ReadDir(srcDir)
-		if err != nil {
-			return fmt.Errorf("failed to read src directory: %w", err)
-		}
-		for _, entry := range entries {
-			if entry.IsDir() {
-				continue
-			}
-			srcPath := filepath.Join(srcDir, entry.Name())
-			dstPath := filepath.Join(targetDir, entry.Name())
-			if err := copyFile(srcPath, dstPath); err != nil {
-				return fmt.Errorf("failed to copy %s: %w", entry.Name(), err)
-			}
+		if err := copyDir(srcDir, targetDir); err != nil {
+			return fmt.Errorf("failed to copy src directory: %w", err)
 		}
 	}
 
@@ -566,6 +555,34 @@ func (sm *SprintManager) exportArtifacts(workspaceDir, targetDir string) error {
 			dstPath := filepath.Join(targetTestsDir, entry.Name())
 			if err := copyFile(srcPath, dstPath); err != nil {
 				return fmt.Errorf("failed to copy %s: %w", entry.Name(), err)
+			}
+		}
+	}
+
+	return nil
+}
+
+// copyDir recursively copies a directory from src to dst
+func copyDir(src, dst string) error {
+	entries, err := os.ReadDir(src)
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range entries {
+		srcPath := filepath.Join(src, entry.Name())
+		dstPath := filepath.Join(dst, entry.Name())
+
+		if entry.IsDir() {
+			if err := os.MkdirAll(dstPath, 0755); err != nil {
+				return err
+			}
+			if err := copyDir(srcPath, dstPath); err != nil {
+				return err
+			}
+		} else {
+			if err := copyFile(srcPath, dstPath); err != nil {
+				return err
 			}
 		}
 	}
