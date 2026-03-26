@@ -5,7 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"regexp"
+	"strings"
 
 	"github.com/sleepyeldrazi/scru-llm/internal/llm"
 	"github.com/sleepyeldrazi/scru-llm/internal/prompts"
@@ -71,6 +74,32 @@ func extractJSON(content string) string {
 	return content
 }
 
+// ReadFilesFromDirectory reads all .md files from a directory
+func ReadFilesFromDirectory(dir string) (map[string]string, error) {
+	files := make(map[string]string)
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return files, err
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if strings.HasSuffix(name, ".md") {
+			path := filepath.Join(dir, name)
+			content, err := os.ReadFile(path)
+			if err == nil {
+				files[name] = string(content)
+			}
+		}
+	}
+
+	return files, nil
+}
+
 // ExtractTargetDirectory extracts a target directory path from task description
 // without relying on keyword signaling - uses pattern matching for common path formats
 func ExtractTargetDirectory(description string) string {
@@ -113,10 +142,24 @@ func (po *ProductOwner) CreateSpec(ctx context.Context, task *types.Task) (*type
 		return nil, fmt.Errorf("failed to load prompt: %w", err)
 	}
 
+	// Build user prompt with context
 	userPrompt := fmt.Sprintf(`Task: %s
 Description: %s
 
-Create a detailed specification.`, task.Title, task.Description)
+`, task.Title, task.Description)
+
+	// Read files from target directory if available
+	if task.TargetDirectory != "" {
+		files, err := ReadFilesFromDirectory(task.TargetDirectory)
+		if err == nil && len(files) > 0 {
+			userPrompt += "\nReference Documents:\n"
+			for filename, content := range files {
+				userPrompt += fmt.Sprintf("\n--- %s ---\n%s\n", filename, content)
+			}
+		}
+	}
+
+	userPrompt += "\nCreate a detailed specification."
 
 	resp, err := po.router.CompleteWithSystemForRole(ctx, "product_owner", systemPrompt, userPrompt)
 	if err != nil {
