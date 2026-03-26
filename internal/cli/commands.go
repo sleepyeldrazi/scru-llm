@@ -221,9 +221,31 @@ func NewStatusCommand() *cobra.Command {
 				fmt.Printf("Completed: %d\n", len(completed))
 				fmt.Printf("Failed:    %d\n", len(failed))
 
+				// Show all non-zero status categories
+				if len(pending) > 0 {
+					fmt.Println("\nPending Tasks:")
+					for _, task := range pending {
+						fmt.Printf("  - %s [%s] %s\n", task.ID, task.Status, task.Title)
+					}
+				}
+
 				if len(active) > 0 {
 					fmt.Println("\nActive Tasks:")
 					for _, task := range active {
+						fmt.Printf("  - %s [%s] %s\n", task.ID, task.Status, task.Title)
+					}
+				}
+
+				if len(completed) > 0 {
+					fmt.Println("\nCompleted Tasks:")
+					for _, task := range completed {
+						fmt.Printf("  - %s [%s] %s\n", task.ID, task.Status, task.Title)
+					}
+				}
+
+				if len(failed) > 0 {
+					fmt.Println("\nFailed Tasks:")
+					for _, task := range failed {
 						fmt.Printf("  - %s [%s] %s\n", task.ID, task.Status, task.Title)
 					}
 				}
