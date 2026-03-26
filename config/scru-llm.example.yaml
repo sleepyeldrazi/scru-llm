@@ -1,0 +1,238 @@
+# Scru-LLM Configuration
+# Copy this file to ~/.scru-llm/scru-llm.yaml and customize
+
+# =============================================================================
+# System Settings
+# =============================================================================
+system:
+  # Directory for task workspaces
+  workspace_dir: "~/.scru-llm/workspaces"
+  
+  # Log level: debug, info, warn, error
+  log_level: "info"
+  
+  # Maximum concurrent tasks
+  max_concurrent_tasks: 3
+  
+  # Directory for logs
+  log_dir: "~/.scru-llm/logs"
+
+# =============================================================================
+# LLM Provider Configuration
+# =============================================================================
+llm:
+  # List of LLM providers
+  providers:
+    - name: openrouter
+      base_url: "https://openrouter.ai/api/v1"
+      api_key: "${OPENROUTER_API_KEY}"
+      default_model: "anthropic/claude-3.5-sonnet"
+      
+    # Example: Local model via llama.cpp
+    # - name: local
+    #   base_url: "http://localhost:1234/v1"
+    #   api_key: "sk-local"
+    #   default_model: "local-model"
+  
+  # Role-to-model mapping
+  # Each role can specify provider, model, temperature, and max_tokens
+  roles:
+    product_owner:
+      provider: openrouter
+      model: "anthropic/claude-3.5-sonnet"
+      temperature: 0.5
+      max_tokens: 4096
+      
+    scrum_master:
+      provider: openrouter
+      model: "meta-llama/llama-3.1-70b"
+      temperature: 0.4
+      max_tokens: 2048
+      
+    spec_engineer:
+      provider: openrouter
+      model: "meta-llama/llama-3.1-70b"
+      temperature: 0.3
+      max_tokens: 4096
+      
+    test_engineer:
+      provider: openrouter
+      model: "anthropic/claude-3.5-sonnet"
+      temperature: 0.5
+      max_tokens: 8192
+      
+    code_engineer:
+      provider: openrouter
+      model: "anthropic/claude-3.5-sonnet"
+      temperature: 0.7
+      max_tokens: 8192
+      
+    reviewer:
+      provider: openrouter
+      model: "meta-llama/llama-3.1-70b"
+      temperature: 0.3
+      max_tokens: 4096
+
+# =============================================================================
+# Sprint Configuration
+# =============================================================================
+sprint:
+  # Specification phase settings
+  spec_sprint:
+    max_iterations: 3
+    timeout_per_iteration: 5m
+    
+  # Test generation phase settings
+  test_sprint:
+    max_iterations: 3
+    timeout_per_iteration: 10m
+    min_coverage_percent: 80
+    
+  # Implementation phase settings
+  implementation_sprint:
+    max_iterations: 5
+    timeout_per_iteration: 15m
+    
+  # Global timeout for entire sprint
+  global_timeout: 1h
+
+# =============================================================================
+# Container Configuration
+# =============================================================================
+container:
+  # Container runtime: docker, podman, containerd
+  runtime: docker
+  
+  # Optional: Container registry for custom images
+  # registry: "your-registry.com"
+  
+  # Base images for different languages
+  # These are used to build task-specific containers
+  base_images:
+    python: "python:3.11-slim"
+    node: "node:18-alpine"
+    go: "golang:1.21-alpine"
+    rust: "rust:1.75-slim"
+    java: "openjdk:21-slim"
+    
+  # Resource limits for containers
+  resource_limits:
+    cpu: 2
+    memory: "4g"
+    timeout: 10m
+  
+  # Volume mounts (in addition to workspace)
+  # Useful for shared caches
+  volumes:
+    # - host_path: "/home/user/.pip-cache"
+    #   container_path: "/root/.cache/pip"
+    #   read_only: false
+
+# =============================================================================
+# Reporting and Dashboard
+# =============================================================================
+reporting:
+  # Web dashboard settings
+  dashboard:
+    enabled: true
+    port: 8080
+    host: "127.0.0.1"
+    refresh_interval: 5s
+    
+  # Audit logging
+  audit_log:
+    enabled: true
+    path: "~/.scru-llm/logs/audit.jsonl"
+    rotation_days: 30
+    
+  # Agent activity logs
+  agent_logs:
+    enabled: true
+    path: "~/.scru-llm/logs/agents/"
+    retention_days: 14
+    
+  # Metrics export (Prometheus format)
+  metrics:
+    enabled: false
+    port: 9090
+    path: "/metrics"
+
+# =============================================================================
+# Cost Controls
+# =============================================================================
+cost:
+  # Maximum cost per task (USD)
+  budget_per_task: 5.00
+  
+  # Warning threshold (0.0-1.0)
+  warning_threshold: 0.8
+  
+  # Hard stop threshold (0.0-1.0)
+  emergency_stop_threshold: 1.0
+  
+  # Track costs by provider
+  track_by_provider: true
+
+# =============================================================================
+# Security Settings
+# =============================================================================
+security:
+  # Enable container sandboxing
+  sandbox_enabled: true
+  
+  # Allow network access in containers
+  # Generally false for security, true if tasks need external APIs
+  allow_network_access: false
+  
+  # Command whitelist (empty = deny all except build/test)
+  # Commands allowed in containers beyond build/test
+  allowed_commands: []
+  # Example:
+  # allowed_commands:
+  #   - "curl"
+  #   - "wget"
+  
+  # Trusted CIDRs for API access
+  trusted_cidrs:
+    - "127.0.0.1/32"
+    - "10.0.0.0/8"
+    - "172.16.0.0/12"
+    - "192.168.0.0/16"
+
+# =============================================================================
+# API Server Settings
+# =============================================================================
+api:
+  # Enable REST API
+  enabled: true
+  
+  # API server port
+  port: 8081
+  
+  # Host to bind to
+  host: "127.0.0.1"
+  
+  # Enable WebSocket for real-time updates
+  websocket_enabled: true
+  
+  # Require authentication
+  require_auth: true
+  
+  # Authentication method: token, basic, none
+  auth_method: "token"
+
+# =============================================================================
+# Development Settings
+# =============================================================================
+development:
+  # Enable debug mode (verbose logging)
+  debug: false
+  
+  # Save full LLM prompts and responses
+  save_llm_traces: false
+  
+  # Don't clean up workspaces after completion
+  keep_workspaces: false
+  
+  # Mock LLM responses (for testing without API calls)
+  mock_mode: false

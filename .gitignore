@@ -1,0 +1,75 @@
+# Go binaries and test artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+coverage.txt
+coverage.html
+bin/
+dist/
+
+# Go workspace and vendoring
+go.work
+go.work.sum
+vendor/
+
+# Editors and local tooling
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS clutter
+.DS_Store
+Thumbs.db
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+.envrc
+*.secret
+*.key
+*.pem
+
+# Local config and decrypted secrets
+config/scru-llm.yaml
+config/*.enc.yaml.dec
+config/secrets/
+config.local.yaml
+
+# Databases and temp files
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+tmp/
+temp/
+*.tmp
+
+# Logs and runtime state
+logs/
+*.log
+.scru-llm/
+workspaces/
+
+# Local research and scratch files
+/Research.md
+notes/
+scratch/
+playground/
+
+# Benchmarks
+.benchmarks/
+*.benchmark
+
+# Common local tool state
+.direnv/
+.cache/
+.claude/
+.codex/
+.opencode/
